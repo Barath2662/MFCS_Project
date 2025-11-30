@@ -115,102 +115,87 @@ def least_cost(cost, supply, demand):
     return alloc, total_cost
 
 def vam(cost, supply, demand):
-    # Make copies to avoid modifying the original data
-    cost = [row[:] for row in cost]
-    supply = supply[:]
-    demand = demand[:]
+    import numpy as np
     
-    m, n = len(supply), len(demand)
-    alloc = [[0] * n for _ in range(m)]
-    total_cost = 0
+    # Convert to numpy arrays for better performance
+    cost = np.array(cost, dtype=float)
+    supply = np.array(supply, dtype=float)
+    demand = np.array(demand, dtype=float)
     
     # Balance the problem if needed
-    total_supply = sum(supply)
-    total_demand = sum(demand)
+    total_supply = np.sum(supply)
+    total_demand = np.sum(demand)
     
     if total_supply > total_demand:
-        demand.append(total_supply - total_demand)
-        for row in cost:
-            row.append(0)
+        demand = np.append(demand, total_supply - total_demand)
+        cost = np.column_stack((cost, np.zeros(cost.shape[0])))
     elif total_demand > total_supply:
-        supply.append(total_demand - total_supply)
-        cost.append([0] * len(demand))
+        supply = np.append(supply, total_demand - total_supply)
+        cost = np.vstack((cost, np.zeros(cost.shape[1])))
     
     m, n = len(supply), len(demand)
+    alloc = np.zeros((m, n))
+    total_cost = 0
     
-    while sum(supply) > 0 and sum(demand) > 0:
-        # Calculate penalties
-        row_penalties = []
-        for i in range(m):
-            if supply[i] == 0:
-                row_penalties.append(-1)
+    # Create masks for valid rows and columns
+    row_mask = np.ones(m, dtype=bool)
+    col_mask = np.ones(n, dtype=bool)
+    
+    while np.any(row_mask) and np.any(col_mask):
+        # Calculate row penalties
+        row_penalties = np.full(m, -1.0)
+        for i in np.where(row_mask)[0]:
+            valid_cols = np.where(col_mask)[0]
+            if len(valid_cols) < 2:
                 continue
-            row = [cost[i][j] for j in range(n) if demand[j] > 0]
-            if len(row) >= 2:
-                row_sorted = sorted(row)
-                row_penalties.append(row_sorted[1] - row_sorted[0])
-            else:
-                row_penalties.append(-1)
+            row_vals = cost[i, valid_cols]
+            min_vals = np.partition(row_vals, 1)[:2]  # Get two smallest values
+            row_penalties[i] = min_vals[1] - min_vals[0]
         
-        col_penalties = []
-        for j in range(n):
-            if demand[j] == 0:
-                col_penalties.append(-1)
+        # Calculate column penalties
+        col_penalties = np.full(n, -1.0)
+        for j in np.where(col_mask)[0]:
+            valid_rows = np.where(row_mask)[0]
+            if len(valid_rows) < 2:
                 continue
-            col = [cost[i][j] for i in range(m) if supply[i] > 0]
-            if len(col) >= 2:
-                col_sorted = sorted(col)
-                col_penalties.append(col_sorted[1] - col_sorted[0])
-            else:
-                col_penalties.append(-1)
+            col_vals = cost[valid_rows, j]
+            min_vals = np.partition(col_vals, 1)[:2]  # Get two smallest values
+            col_penalties[j] = min_vals[1] - min_vals[0]
         
         # Find maximum penalty
-        max_row_penalty = max(row_penalties)
-        max_col_penalty = max(col_penalties)
+        max_row_penalty = np.max(row_penalties)
+        max_col_penalty = np.max(col_penalties)
         
-        if max_row_penalty >= max_col_penalty:
+        if max_row_penalty >= max_col_penalty and max_row_penalty > 0:
             # Select row with maximum penalty
-            i = row_penalties.index(max_row_penalty)
+            i = np.argmax(row_penalties)
             # Find minimum cost in this row
-            min_cost = float('inf')
-            j_min = -1
-            for j in range(n):
-                if demand[j] > 0 and cost[i][j] < min_cost:
-                    min_cost = cost[i][j]
-                    j_min = j
-            j = j_min
+            j = np.argmin(np.where(col_mask, cost[i], np.inf))
         else:
             # Select column with maximum penalty
-            j = col_penalties.index(max_col_penalty)
+            j = np.argmax(col_penalties)
             # Find minimum cost in this column
-            min_cost = float('inf')
-            i_min = -1
-            for i in range(m):
-                if supply[i] > 0 and cost[i][j] < min_cost:
-                    min_cost = cost[i][j]
-                    i_min = i
-            i = i_min
+            i = np.argmin(np.where(row_mask, cost[:, j], np.inf))
         
         # Allocate as much as possible
         allocation = min(supply[i], demand[j])
-        alloc[i][j] = allocation
-        total_cost += allocation * cost[i][j]
+        alloc[i, j] = allocation
+        total_cost += allocation * cost[i, j]
         
         # Update supply and demand
         supply[i] -= allocation
         demand[j] -= allocation
         
-        # If supply is exhausted, set costs to infinity
-        if supply[i] == 0:
-            for j in range(n):
-                cost[i][j] = float('inf')
-        
-        # If demand is satisfied, set costs to infinity
-        if demand[j] == 0:
-            for i in range(m):
-                cost[i][j] = float('inf')
+        # Update masks
+        if supply[i] <= 1e-10:  # Account for floating point precision
+            row_mask[i] = False
+            cost[i] = np.inf
+        if demand[j] <= 1e-10:  # Account for floating point precision
+            col_mask[j] = False
+            cost[:, j] = np.inf
     
-    return alloc, total_cost
+    # Convert back to Python lists for compatibility
+    return alloc.tolist(), float(total_cost)
 
 # Main app logic
 if problem_type == "Assignment Problem":
