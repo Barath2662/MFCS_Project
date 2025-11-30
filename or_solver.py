@@ -19,15 +19,24 @@ def solve_assignment(cost_matrix, problem_type='min'):
     
     r, c = cost_matrix.shape
     size = max(r, c)
+    
+    # Create a square matrix by adding dummy rows/columns with zero cost
     padded = np.zeros((size, size))
     padded[:r, :c] = cost_matrix
+    
+    # Solve the assignment problem
     row_ind, col_ind = linear_sum_assignment(padded)
     
-    # Calculate the original total cost based on the original matrix
-    total_cost = cost_matrix[row_ind, col_ind].sum()
-    assignments = list(zip(row_ind, col_ind))
+    # Filter out dummy assignments (where either row or column is beyond the original matrix dimensions)
+    valid_assignments = []
+    total_cost = 0
     
-    return assignments, total_cost
+    for i, j in zip(row_ind, col_ind):
+        if i < r and j < c:  # Only include assignments within the original matrix dimensions
+            valid_assignments.append((i, j))
+            total_cost += cost_matrix[i, j]
+    
+    return valid_assignments, total_cost
 
 def balance(cost, supply, demand):
     supply_sum = sum(supply)
