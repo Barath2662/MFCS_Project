@@ -115,55 +115,101 @@ def least_cost(cost, supply, demand):
     return alloc, total_cost
 
 def vam(cost, supply, demand):
-    cost_copy = [row[:] for row in cost]
+    # Make copies to avoid modifying the original data
+    cost = [row[:] for row in cost]
     supply = supply[:]
     demand = demand[:]
-    m, n = len(cost_copy), len(cost_copy[0])
-    alloc = [[0]*n for _ in range(m)]
-
-    while sum(supply) > 0:
-        penalties = []
-
-        # Row penalties
+    
+    m, n = len(supply), len(demand)
+    alloc = [[0] * n for _ in range(m)]
+    total_cost = 0
+    
+    # Balance the problem if needed
+    total_supply = sum(supply)
+    total_demand = sum(demand)
+    
+    if total_supply > total_demand:
+        demand.append(total_supply - total_demand)
+        for row in cost:
+            row.append(0)
+    elif total_demand > total_supply:
+        supply.append(total_demand - total_supply)
+        cost.append([0] * len(demand))
+    
+    m, n = len(supply), len(demand)
+    
+    while sum(supply) > 0 and sum(demand) > 0:
+        # Calculate penalties
+        row_penalties = []
         for i in range(m):
-            if supply[i] > 0:
-                row = [cost_copy[i][j] for j in range(n) if demand[j] > 0]
-                if len(row) >= 2:
-                    s = sorted(row)
-                    penalties.append((s[1] - s[0], i, "row"))
-
-        # Column penalties
+            if supply[i] == 0:
+                row_penalties.append(-1)
+                continue
+            row = [cost[i][j] for j in range(n) if demand[j] > 0]
+            if len(row) >= 2:
+                row_sorted = sorted(row)
+                row_penalties.append(row_sorted[1] - row_sorted[0])
+            else:
+                row_penalties.append(-1)
+        
+        col_penalties = []
         for j in range(n):
-            if demand[j] > 0:
-                col = [cost_copy[i][j] for i in range(m) if supply[i] > 0]
-                if len(col) >= 2:
-                    s = sorted(col)
-                    penalties.append((s[1] - s[0], j, "col"))
-
-        if not penalties:
-            break
-
-        penalties.sort(reverse=True)
-        _, idx, typ = penalties[0]
-
-        if typ == "row":
-            i = idx
-            j = min(range(n), key=lambda x: cost_copy[i][x] if demand[x] > 0 else float('inf'))
+            if demand[j] == 0:
+                col_penalties.append(-1)
+                continue
+            col = [cost[i][j] for i in range(m) if supply[i] > 0]
+            if len(col) >= 2:
+                col_sorted = sorted(col)
+                col_penalties.append(col_sorted[1] - col_sorted[0])
+            else:
+                col_penalties.append(-1)
+        
+        # Find maximum penalty
+        max_row_penalty = max(row_penalties)
+        max_col_penalty = max(col_penalties)
+        
+        if max_row_penalty >= max_col_penalty:
+            # Select row with maximum penalty
+            i = row_penalties.index(max_row_penalty)
+            # Find minimum cost in this row
+            min_cost = float('inf')
+            j_min = -1
+            for j in range(n):
+                if demand[j] > 0 and cost[i][j] < min_cost:
+                    min_cost = cost[i][j]
+                    j_min = j
+            j = j_min
         else:
-            j = idx
-            i = min(range(m), key=lambda x: cost_copy[x][j] if supply[x] > 0 else float('inf'))
-
-        val = min(supply[i], demand[j])
-        alloc[i][j] = val
-        supply[i] -= val
-        demand[j] -= val
-
+            # Select column with maximum penalty
+            j = col_penalties.index(max_col_penalty)
+            # Find minimum cost in this column
+            min_cost = float('inf')
+            i_min = -1
+            for i in range(m):
+                if supply[i] > 0 and cost[i][j] < min_cost:
+                    min_cost = cost[i][j]
+                    i_min = i
+            i = i_min
+        
+        # Allocate as much as possible
+        allocation = min(supply[i], demand[j])
+        alloc[i][j] = allocation
+        total_cost += allocation * cost[i][j]
+        
+        # Update supply and demand
+        supply[i] -= allocation
+        demand[j] -= allocation
+        
+        # If supply is exhausted, set costs to infinity
         if supply[i] == 0:
-            for c in range(n): cost_copy[i][c] = float('inf')
+            for j in range(n):
+                cost[i][j] = float('inf')
+        
+        # If demand is satisfied, set costs to infinity
         if demand[j] == 0:
-            for r in range(m): cost_copy[r][j] = float('inf')
-
-    total_cost = sum(alloc[i][j] * cost[i][j] for i in range(m) for j in range(n))
+            for i in range(m):
+                cost[i][j] = float('inf')
+    
     return alloc, total_cost
 
 # Main app logic
