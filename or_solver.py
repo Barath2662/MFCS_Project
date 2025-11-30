@@ -194,13 +194,25 @@ if problem_type == "Assignment Problem":
     
     if st.button("Solve Assignment Problem"):
         try:
-            assignments, total_cost = solve_assignment(cost_matrix, problem_type)
+            # Convert cost matrix to numpy array for consistent handling
+            cost_array = np.array(cost_matrix)
+            assignments, total_cost = solve_assignment(cost_array, problem_type)
+            
             st.subheader("Results")
             st.write("Assignments (row → col):")
-            for assign in assignments:
-                st.write(f"Row {assign[0]+1} → Column {assign[1]+1} (Cost: {cost_matrix[assign[0], assign[1]]})")
+            
+            # Display each assignment with its cost
+            for i, j in assignments:
+                cost = cost_array[i, j] if problem_type == 'min' else (np.max(cost_array) - cost_array[i, j])
+                st.write(f"Row {i+1} → Column {j+1} (Cost: {cost})")
+            
             st.success(f"Total {'Cost' if problem_type == 'min' else 'Profit'}: {total_cost}")
             st.info(f"Problem Type: {'Minimization' if problem_type == 'min' else 'Maximization'}")
+            
+            # Debug information (can be removed in production)
+            with st.expander("Debug Info"):
+                st.write("Cost Matrix:", cost_array)
+                st.write("Assignments:", assignments)
         except Exception as e:
             st.error(f"Error solving assignment problem: {str(e)}")
 
