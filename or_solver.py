@@ -11,10 +11,11 @@ problem_type = st.sidebar.selectbox("Select Problem Type", ["Assignment Problem"
 # Common functions
 def solve_assignment(cost_matrix, problem_type='min'):
     cost_matrix = np.array(cost_matrix)
+    original_cost = cost_matrix.copy()
     
     # Convert maximization to minimization problem if needed
     if problem_type == 'max':
-        max_val = np.max(cost_matrix)
+        max_val = np.max(cost_matrix) + 1  # Add 1 to ensure all values remain positive
         cost_matrix = max_val - cost_matrix
     
     r, c = cost_matrix.shape
@@ -27,16 +28,16 @@ def solve_assignment(cost_matrix, problem_type='min'):
     # Solve the assignment problem
     row_ind, col_ind = linear_sum_assignment(padded)
     
-    # Filter out dummy assignments (where either row or column is beyond the original matrix dimensions)
+    # Filter out dummy assignments and calculate total from original costs
     valid_assignments = []
-    total_cost = 0
+    total_original_cost = 0
     
     for i, j in zip(row_ind, col_ind):
         if i < r and j < c:  # Only include assignments within the original matrix dimensions
             valid_assignments.append((i, j))
-            total_cost += cost_matrix[i, j]
+            total_original_cost += original_cost[i, j]
     
-    return valid_assignments, total_cost
+    return valid_assignments, total_original_cost
 
 def balance(cost, supply, demand):
     supply_sum = sum(supply)
@@ -201,18 +202,19 @@ if problem_type == "Assignment Problem":
             st.subheader("Results")
             st.write("Assignments (row → col):")
             
-            # Display each assignment with its cost
+            # Display each assignment with its original cost
             for i, j in assignments:
-                cost = cost_array[i, j] if problem_type == 'min' else (np.max(cost_array) - cost_array[i, j])
-                st.write(f"Row {i+1} → Column {j+1} (Cost: {cost})")
+                cost = cost_array[i, j]
+                st.write(f"Row {i+1} → Column {j+1} ({'Cost' if problem_type == 'min' else 'Profit'}: {cost})")
             
             st.success(f"Total {'Cost' if problem_type == 'min' else 'Profit'}: {total_cost}")
             st.info(f"Problem Type: {'Minimization' if problem_type == 'min' else 'Maximization'}")
             
-            # Debug information (can be removed in production)
-            with st.expander("Debug Info"):
-                st.write("Cost Matrix:", cost_array)
-                st.write("Assignments:", assignments)
+            # Show the original cost matrix for reference
+            with st.expander("View Cost/Profit Matrix"):
+                st.write("Original Matrix:")
+                st.dataframe(cost_array)
+                st.write("Note: Values shown are the original input values.")
         except Exception as e:
             st.error(f"Error solving assignment problem: {str(e)}")
 
