@@ -7,10 +7,7 @@ st.set_page_config(page_title="Operations Research Solver", layout="wide")
 st.title("Operations Research Solver")
 
 def solve_assignment(cost_matrix, problem_type='min'):
-    """
-    Solves the Assignment Problem using the Hungarian Algorithm (via scipy).
-    Handles both minimization and maximization by transforming the matrix.
-    """
+
     cost_matrix = np.array(cost_matrix, dtype=float)
     original_cost = cost_matrix.copy()
 

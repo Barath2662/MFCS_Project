@@ -22,20 +22,32 @@ def hungarian_solution(cost_matrix):
 
         if len(assigned_rows) == n:
             break
-       
-        s_min = np.min(C[C > 0])
-       
-        if s_min is not np.ma.masked and s_min > 0:
-            C -= s_min
+covered_rows = [i for i in range(n) if i not in assigned_rows]
+covered_cols = assigned_cols.copy()
 
-    final_rows = []
-    final_cols = []
-   
-    for i in range(n):
-        for j in range(n):
-            if C[i, j] == 0 and i not in final_rows and j not in final_cols:
-                final_rows.append(i)
-                final_cols.append(j)
-   
-    return np.array(final_rows), np.array(final_cols)
+uncovered = []
+for i in range(n):
+    for j in range(n):
+        if i not in covered_rows and j not in covered_cols:
+            uncovered.append(C[i, j])
+if uncovered:
+    min_uncovered = min(uncovered)
+else:
+    min_uncovered = 0
 
+for i in range(n):
+    for j in range(n):
+        if i not in covered_rows and j not in covered_cols:
+            C[i, j] -= min_uncovered
+        elif i in covered_rows and j in covered_cols:
+            C[i, j] += min_uncovered
+
+final_rows = []
+final_cols = []
+   
+for i in range(n):
+    for j in range(n):
+        if C[i, j] == 0 and i not in final_rows and j not in final_cols:
+            final_rows.append(i)
+            final_cols.append(j)
+        
