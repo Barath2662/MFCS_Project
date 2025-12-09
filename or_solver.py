@@ -1,39 +1,71 @@
 import streamlit as st
 import numpy as np
-from scipy.optimize import linear_sum_assignment
 
 st.set_page_config(page_title="Operations Research Solver", layout="wide")
 st.title("Operations Research Solver")
 
-# Problem type selection
+
 problem_type = st.sidebar.selectbox("Select Problem Type", ["Assignment Problem", "Transportation Problem"])
 
-# Common functions
 def solve_assignment(cost_matrix, problem_type='min'):
     cost_matrix = np.array(cost_matrix)
     original_cost = cost_matrix.copy()
     
-    # Convert maximization to minimization problem if needed
+
     if problem_type == 'max':
-        max_val = np.max(cost_matrix) + 1  # Add 1 to ensure all values remain positive
+        max_val = np.max(cost_matrix) + 1  
         cost_matrix = max_val - cost_matrix
     
     r, c = cost_matrix.shape
     size = max(r, c)
     
-    # Create a square matrix by adding dummy rows/columns with zero cost
     padded = np.zeros((size, size))
     padded[:r, :c] = cost_matrix
     
-    # Solve the assignment problem
-    row_ind, col_ind = linear_sum_assignment(padded)
+    def hungarian_manual(cost_matrix):
+        cost = np.array(cost_matrix, dtype=float)
+        original = cost.copy()
+        n = cost.shape[0]   
+
+
+        for i in range(n):
+            row_min = np.min(cost[i])
+            cost[i] -= row_min
+
+       
+        for j in range(n):
+            col_min = np.min(cost[:, j])
+            cost[:, j] -= col_min
+
+
+        assignment = [-1] * n
+        assigned_cols = set()
+
+        for i in range(n):
+            for j in range(n):
+                if cost[i][j] == 0 and j not in assigned_cols:
+                    assignment[i] = j
+                    assigned_cols.add(j)
+                    break
+
+
+        total_cost = 0
+        for i in range(n):
+            if assignment[i] != -1:
+                total_cost += original[i][assignment[i]]
+
+        return assignment, total_cost
+
+    assignment, _ = hungarian_manual(padded)
+    row_ind = [i for i, j in enumerate(assignment) if j != -1]
+    col_ind = [assignment[i] for i in row_ind]
     
-    # Filter out dummy assignments and calculate total from original costs
+
     valid_assignments = []
     total_original_cost = 0
     
     for i, j in zip(row_ind, col_ind):
-        if i < r and j < c:  # Only include assignments within the original matrix dimensions
+        if i < r and j < c:  
             valid_assignments.append((i, j))
             total_original_cost += original_cost[i, j]
     
@@ -49,12 +81,12 @@ def balance(cost, supply, demand):
     if supply_sum == demand_sum:
         return cost, supply, demand
 
-    if supply_sum > demand_sum:  # Add dummy demand
+    if supply_sum > demand_sum:  
         diff = supply_sum - demand_sum
         demand.append(diff)
         for row in cost:
             row.append(0)
-    else:  # Add dummy supply
+    else:  
         diff = demand_sum - supply_sum
         supply.append(diff)
         cost.append([0] * len(demand))
